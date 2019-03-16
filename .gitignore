@@ -1,0 +1,8 @@
+*~
+nimcache
+*.exe
+*.sfk
+.DS_Store
+._*
+*.wav
+test_out
