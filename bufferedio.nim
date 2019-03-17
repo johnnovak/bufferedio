@@ -461,6 +461,10 @@ proc writeFloat64*(bw: var BufferedWriter, d: float64) =
 # {{{ Buffered write
 
 # 8-bit
+#
+proc writeData8*(bw: var BufferedWriter, data: pointer, len: Natural) =
+  ## TODO
+  bw.writeBuf(data, len)
 
 proc writeData*(bw: var BufferedWriter, data: var openArray[int8|uint8]) =
   ## TODO
