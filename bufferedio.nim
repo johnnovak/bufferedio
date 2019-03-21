@@ -199,7 +199,7 @@ proc readData*(br: var BufferedReader,
   if br.swapEndian:
     var
       bytesToRead = len * WIDTH
-      readBufferSize = (br.readBuffer.len div WIDTH) * WIDTH
+      readBufferSize = br.readBuffer.len - br.readBuffer.len mod WIDTH
       destPos = 0
 
     while bytesToRead > 0:
@@ -216,7 +216,70 @@ proc readData*(br: var BufferedReader,
 
 # 24-bit
 
-# TODO
+proc readData24Unpacked*(br: var BufferedReader,
+                         dest: var openArray[int32|uint32], len: Natural) =
+  const WIDTH = 3
+  var
+    bytesToRead = len * WIDTH
+    readBufferSize = br.readBuffer.len - br.readBuffer.len mod WIDTH
+    destPos = 0
+
+  while bytesToRead > 0:
+    let count = min(readBufferSize, bytesToRead)
+    br.readBuf(br.readBuffer[0].addr, count)
+    var pos = 0
+    while pos < count:
+      var v: int32
+      case br.endianness:
+      of littleEndian:
+        v = br.readBuffer[pos].int32 or
+            (br.readBuffer[pos+1].int32 shl 8) or
+            ashr(br.readBuffer[pos+2].int32 shl 24, 8)
+      of bigEndian:
+        v = br.readBuffer[pos+2].int32 or
+            (br.readBuffer[pos+1].int32 shl 8) or
+            ashr(br.readBuffer[pos].int32 shl 24, 8)
+      dest[destPos] = v
+      inc(pos, WIDTH)
+      inc(destPos)
+
+    dec(bytesToRead, count)
+
+
+proc readData24Unpacked*(br: var BufferedReader,
+                         dest: var openArray[int32|uint32]) =
+  br.readData24Unpacked(dest, dest.len)
+
+
+proc readData24Packed*(br: var BufferedReader,
+                       dest: var openArray[uint8], len: Natural) =
+  const WIDTH = 3
+  var
+    bytesToRead = len * WIDTH
+    readBufferSize = br.readBuffer.len - br.readBuffer.len mod WIDTH
+    destPos = 0
+
+  while bytesToRead > 0:
+    let count = min(readBufferSize, bytesToRead)
+    br.readBuf(br.readBuffer[0].addr, count)
+    var pos = 0
+    while pos < count:
+      if br.swapEndian:
+        dest[destPos]   = br.readBuffer[pos+2]
+        dest[destPos+1] = br.readBuffer[pos+1]
+        dest[destPos+2] = br.readBuffer[pos]
+      else:
+        dest[destPos]   = br.readBuffer[pos]
+        dest[destPos+1] = br.readBuffer[pos+1]
+        dest[destPos+2] = br.readBuffer[pos+2]
+      inc(pos, WIDTH)
+      inc(destPos, WIDTH)
+
+    dec(bytesToRead, count)
+
+
+proc readData24Packed*(br: var BufferedReader, dest: var openArray[uint8]) =
+  br.readData24Packed(dest, dest.len div 3)
 
 # 32-bit
 
@@ -229,7 +292,7 @@ proc readData*(br: var BufferedReader,
   if br.swapEndian:
     var
       bytesToRead = len * WIDTH
-      readBufferSize = (br.readBuffer.len div WIDTH) * WIDTH
+      readBufferSize = br.readBuffer.len - br.readBuffer.len mod WIDTH
       destPos = 0
 
     while bytesToRead > 0:
@@ -255,7 +318,7 @@ proc readData*(br: var BufferedReader,
   if br.swapEndian:
     var
       bytesToRead = len * WIDTH
-      readBufferSize = (br.readBuffer.len div WIDTH) * WIDTH
+      readBufferSize = br.readBuffer.len - br.readBuffer.len mod WIDTH
       destPos = 0
 
     while bytesToRead > 0:
@@ -485,7 +548,7 @@ proc writeData16*(bw: var BufferedWriter, data: pointer, len: Natural) =
   assert len mod WIDTH == 0
 
   if bw.swapEndian:
-    let writeBufferSize = (bw.writeBuffer.len div WIDTH) * WIDTH
+    let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
       src = cast[ptr UncheckedArray[uint8]](data)
       pos = 0
@@ -520,10 +583,9 @@ proc writeData*(bw: var BufferedWriter, data: var openArray[int16|uint16],
 proc writeData24Packed*(bw: var BufferedWriter, data: pointer, len: Natural) =
   ## TODO
   const WIDTH = 3
-  assert len mod WIDTH == 0
 
   if bw.swapEndian:
-    let writeBufferSize = (bw.writeBuffer.len div WIDTH) * WIDTH
+    let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
       src = cast[ptr UncheckedArray[uint8]](data)
       pos = 0
@@ -552,15 +614,15 @@ proc writeData24Packed*(bw: var BufferedWriter, data: var openArray[int8|uint8])
 proc writeData24Packed*(bw: var BufferedWriter,
                         data: var openArray[int8|uint8], len: Natural) =
   ## TODO
-  assert len <= data.len
-  bw.writeData24Packed(data[0].addr, len)
+  assert len * 3 <= data.len
+  bw.writeData24Packed(data[0].addr, len * 3)
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter, data: pointer, len: Natural) =
   ## TODO
   assert len mod 4 == 0
 
-  let writeBufferSize = (bw.writeBuffer.len div 3) * 3
+  let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod 3
   var
     src = cast[ptr UncheckedArray[uint8]](data)
     pos = 0
@@ -604,7 +666,7 @@ proc writeData32*(bw: var BufferedWriter, data: pointer, len: Natural) =
   assert len mod WIDTH == 0
 
   if bw.swapEndian:
-    let writeBufferSize = (bw.writeBuffer.len div WIDTH) * WIDTH
+    let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
       src = cast[ptr UncheckedArray[uint8]](data)
       pos = 0
@@ -642,7 +704,7 @@ proc writeData64*(bw: var BufferedWriter, data: pointer, len: Natural) =
   assert len mod WIDTH == 0
 
   if bw.swapEndian:
-    let writeBufferSize = (bw.writeBuffer.len div WIDTH) * WIDTH
+    let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
       src = cast[ptr UncheckedArray[uint8]](data)
       pos = 0

@@ -3,17 +3,31 @@ import endians, math, os, strformat, terminal, unittest
 import bufferedio
 
 
-# TODO
-proc printFloat64(p: ptr byte) =
-  let a1 = (cast[ptr byte](cast[int](p)+0))[]
-  let a2 = (cast[ptr byte](cast[int](p)+1))[]
-  let a3 = (cast[ptr byte](cast[int](p)+2))[]
-  let a4 = (cast[ptr byte](cast[int](p)+3))[]
-  let a5 = (cast[ptr byte](cast[int](p)+4))[]
-  let a6 = (cast[ptr byte](cast[int](p)+5))[]
-  let a7 = (cast[ptr byte](cast[int](p)+6))[]
-  let a8 = (cast[ptr byte](cast[int](p)+7))[]
-  echo fmt"{a1:x} {a2:x} {a3:x} {a4:x} {a5:x} {a6:x} {a7:x} {a8:x}"
+proc printBytes(src: pointer, len: Natural,
+                bytesPerRow = 24, grouping = 4) =
+  var
+    s = ""
+    byteCount = 0
+
+  for i in 0..<len:
+    let p = cast[int](src) + i
+    let val = cast[ptr byte](p)[]
+    if byteCount == 0:
+      s = fmt"{p:016X} (+{i:04}):  "
+    s = s & fmt"{val:02X} "
+
+    inc(byteCount)
+    if byteCount == bytesPerRow:
+      echo s
+      s = ""
+      byteCount = 0
+    else:
+      if byteCount mod grouping == 0:
+        s = s & "| "
+
+  if byteCount > 0:
+    echo s
+
 
 const TEST_DATA_DIR = "testdata"
 const TEST_OUT_DIR = "test_out"
@@ -29,6 +43,32 @@ proc createInt16TestData(): seq[int16] =
   var buf = newSeq[int16](15000)
   for i in 0..buf.high:
     buf[i] = (i * 4 - 30000).int16
+  result = buf
+
+proc createInt24UnpackedTestData(): seq[int32] =
+  var buf = newSeq[int32](15000)
+  for i in 0..buf.high:
+    buf[i] = (i * 2^9 - 30000).int32
+  result = buf
+
+proc createInt24PackedTestData(): seq[uint8] =
+  let dataLen = 15000
+  var
+    buf = newSeq[uint8](dataLen * 3)
+    bufPos = 0
+  for i in 0..<dataLen:
+    var d = (i * 2^9 - 30000).int32
+    if cpuEndian == littleEndian:
+      buf[bufPos+0] = ( d         and 0xff).uint8
+      buf[bufPos+1] = ((d shr  8) and 0xff).uint8
+      buf[bufPos+2] = ((d shr 16) and 0xff).uint8
+    else:
+      buf[bufPos+0] = ((d shr 16) and 0xff).uint8
+      buf[bufPos+1] = ((d shr  8) and 0xff).uint8
+      buf[bufPos+2] = ( d         and 0xff).uint8
+
+    inc(bufPos, 3)
+
   result = buf
 
 proc createInt32TestData(): seq[int32] =
@@ -66,6 +106,19 @@ proc createUInt64TestData(): seq[uint64] =
   var buf = newSeq[uint64](15000)
   for i in 0..buf.high:
     buf[i] = (i * 2^49).uint64
+  result = buf
+
+
+proc createFloat32TestData(): seq[float32] =
+  var buf = newSeq[float32](15000)
+  for i in 0..buf.high:
+    buf[i] = 123.456789 * i.float32
+  result = buf
+
+proc createFloat64TestData(): seq[float64] =
+  var buf = newSeq[float64](15000)
+  for i in 0..buf.high:
+    buf[i] = 123.45678912345678912345 * i.float64
   result = buf
 
 # }}}
@@ -285,6 +338,78 @@ suite "BufferedReader":
     br = openFile(fname, bufSize=2000 * 2)
     buf = newSeq[int16](4000)
     br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (int24 unpacked, little-endian)
+  test "buffered read (int24 unpacked, little-endian)":
+    var
+      expected = createInt24UnpackedTestData()
+      buf = newSeq[int32](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-int24-LE")
+    var br = openFile(fname)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=4096 * 3)
+    buf = newSeq[int32](4096)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=3000 * 3)
+    buf = newSeq[int32](1000)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=1000 * 3)
+    buf = newSeq[int32](1200)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=2000 * 3)
+    buf = newSeq[int32](4000)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (int24 packed, little-endian)
+  test "buffered read (int24 packed, little-endian)":
+    var
+      expected = createInt24PackedTestData()
+      buf = newSeq[uint8](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-int24-LE")
+    var br = openFile(fname)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=4096 * 3)
+    buf = newSeq[uint8](4096 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=3000 * 3)
+    buf = newSeq[uint8](1000 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=1000 * 3)
+    buf = newSeq[uint8](1200 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=2000 * 3)
+    buf = newSeq[uint8](4000 * 3)
+    br.readData24Packed(buf)
     br.close()
     check compareBuf(buf, expected)
   # }}}
@@ -574,6 +699,78 @@ suite "BufferedReader":
     br = openFile(fname, endianness=bigEndian, bufSize=2000 * 2)
     buf = newSeq[int16](4000)
     br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (int24 unpacked, big-endian)
+  test "buffered read (int24 unpacked, big-endian)":
+    var
+      expected = createInt24UnpackedTestData()
+      buf = newSeq[int32](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-int24-BE")
+    var br = openFile(fname, endianness=bigEndian)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=4096 * 3)
+    buf = newSeq[int32](4096)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=3000 * 3)
+    buf = newSeq[int32](1000)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=1000 * 3)
+    buf = newSeq[int32](1200)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=2000 * 3)
+    buf = newSeq[int32](4000)
+    br.readData24Unpacked(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (int24 packed, big-endian)
+  test "buffered read (int24 packed, big-endian)":
+    var
+      expected = createInt24PackedTestData()
+      buf = newSeq[uint8](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-int24-BE")
+    var br = openFile(fname, endianness=bigEndian)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=4096 * 3)
+    buf = newSeq[uint8](4096 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=3000 * 3)
+    buf = newSeq[uint8](1000 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=1000 * 3)
+    buf = newSeq[uint8](1200 * 3)
+    br.readData24Packed(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=2000 * 3)
+    buf = newSeq[uint8](4000 * 3)
+    br.readData24Packed(buf)
     br.close()
     check compareBuf(buf, expected)
   # }}}
@@ -973,6 +1170,76 @@ suite "BufferedWriter":
     check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
 
   # }}}
+  # {{{ buffered write (int24 unpacked, little-endian)
+  test "buffered write (int24 unpacked, little-endian)":
+    var buf = createInt24UnpackedTestData()
+
+    let
+      resultName = "buffered-int24-LE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath)
+    bw.writeData24Unpacked(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=4096 * 3)
+    bw.writeData24Unpacked(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=3000 * 3)
+    bw.writeData24Unpacked(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=1000 * 3)
+    bw.writeData24Unpacked(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=2000 * 3)
+    bw.writeData24Unpacked(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (int24 packed, little-endian)
+  test "buffered write (int24 packed, little-endian)":
+    var buf = createInt24PackedTestData()
+
+    let
+      resultName = "buffered-int24-LE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath)
+    bw.writeData24Packed(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=4096 * 3)
+    bw.writeData24Packed(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=3000 * 3)
+    bw.writeData24Packed(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=1000 * 3)
+    bw.writeData24Packed(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=2000 * 3)
+    bw.writeData24Packed(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
   # {{{ buffered write (int32, little-endian)
   test "buffered write (int32, little-endian)":
     var buf = createInt32TestData()
@@ -1183,6 +1450,76 @@ suite "BufferedWriter":
     check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
 
   # }}}
+  # {{{ buffered write (float32, little-endian)
+  test "buffered write (float32, little-endian)":
+    var buf = createFloat32TestData()
+
+    let
+      resultName = "buffered-float32-LE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath)
+    bw.writeData(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=4096 * 4)
+    bw.writeData(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=3000 * 4)
+    bw.writeData(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=1000 * 4)
+    bw.writeData(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=2000 * 4)
+    bw.writeData(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (float64, little-endian)
+  test "buffered write (float64, little-endian)":
+    var buf = createFloat64TestData()
+
+    let
+      resultName = "buffered-float64-LE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath)
+    bw.writeData(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=4096 * 8)
+    bw.writeData(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=3000 * 8)
+    bw.writeData(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=1000 * 8)
+    bw.writeData(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, bufSize=2000 * 8)
+    bw.writeData(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
 
   # {{{ buffered write (int8, big-endian)
   test "buffered write (int8, big-endian)":
@@ -1250,6 +1587,76 @@ suite "BufferedWriter":
 
     bw = createFile(resultPath, endianness=bigEndian, bufSize=2000 * 2)
     bw.writeData(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (int24 unpacked, big-endian)
+  test "buffered write (int24 unpacked, big-endian)":
+    var buf = createInt24UnpackedTestData()
+
+    let
+      resultName = "buffered-int24-BE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath, endianness=bigEndian)
+    bw.writeData24Unpacked(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=4096 * 3)
+    bw.writeData24Unpacked(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=3000 * 3)
+    bw.writeData24Unpacked(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=1000 * 3)
+    bw.writeData24Unpacked(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=2000 * 3)
+    bw.writeData24Unpacked(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (int24 packed, big-endian)
+  test "buffered write (int24 packed, big-endian)":
+    var buf = createInt24PackedTestData()
+
+    let
+      resultName = "buffered-int24-BE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath, endianness=bigEndian)
+    bw.writeData24Packed(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=4096 * 3)
+    bw.writeData24Packed(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=3000 * 3)
+    bw.writeData24Packed(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=1000 * 3)
+    bw.writeData24Packed(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=2000 * 3)
+    bw.writeData24Packed(buf, 4000)
     bw.close()
     check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
 
@@ -1435,6 +1842,76 @@ suite "BufferedWriter":
 
     let
       resultName = "buffered-uint64-BE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath, endianness=bigEndian)
+    bw.writeData(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=4096 * 8)
+    bw.writeData(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=3000 * 8)
+    bw.writeData(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=1000 * 8)
+    bw.writeData(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=2000 * 8)
+    bw.writeData(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (float32, big-endian)
+  test "buffered write (float32, big-endian)":
+    var buf = createFloat32TestData()
+
+    let
+      resultName = "buffered-float32-BE"
+      resultPath = joinPath(TEST_OUT_DIR, resultName)
+      expectedPath = joinPath(TEST_DATA_DIR, resultName)
+
+    var bw = createFile(resultPath, endianness=bigEndian)
+    bw.writeData(buf)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=4096 * 4)
+    bw.writeData(buf, 4096)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=3000 * 4)
+    bw.writeData(buf, 1000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=1000 * 4)
+    bw.writeData(buf, 1200)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+    bw = createFile(resultPath, endianness=bigEndian, bufSize=2000 * 4)
+    bw.writeData(buf, 4000)
+    bw.close()
+    check diffFiles(resultPath, expectedPath, onlyResultNumBytes=true)
+
+  # }}}
+  # {{{ buffered write (float64, big-endian)
+  test "buffered write (float64, big-endian)":
+    var buf = createFloat64TestData()
+
+    let
+      resultName = "buffered-float64-BE"
       resultPath = joinPath(TEST_OUT_DIR, resultName)
       expectedPath = joinPath(TEST_DATA_DIR, resultName)
 
