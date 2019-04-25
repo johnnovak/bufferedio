@@ -66,9 +66,7 @@ proc createInt24PackedTestData(): seq[uint8] =
       buf[bufPos+0] = ((d shr 16) and 0xff).uint8
       buf[bufPos+1] = ((d shr  8) and 0xff).uint8
       buf[bufPos+2] = ( d         and 0xff).uint8
-
     inc(bufPos, 3)
-
   result = buf
 
 proc createInt32TestData(): seq[int32] =
@@ -629,6 +627,78 @@ suite "BufferedReader":
     br.close()
     check compareBuf(buf, expected)
   # }}}
+  # {{{ buffered read (float32, little-endian)
+  test "buffered read (float32, little-endian)":
+    var
+      expected = createFloat32TestData()
+      buf = newSeq[float32](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-float32-LE")
+    var br = openFile(fname)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=4096 * 4)
+    buf = newSeq[float32](4096)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=3000 * 4)
+    buf = newSeq[float32](1000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=1000 * 4)
+    buf = newSeq[float32](1200)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=2000 * 4)
+    buf = newSeq[float32](4000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (float64, little-endian)
+  test "buffered read (float64, little-endian)":
+    var
+      expected = createFloat64TestData()
+      buf = newSeq[float64](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-float64-LE")
+    var br = openFile(fname)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=4096 * 8)
+    buf = newSeq[float64](4096)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=3000 * 8)
+    buf = newSeq[float64](1000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=1000 * 8)
+    buf = newSeq[float64](1200)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, bufSize=2000 * 8)
+    buf = newSeq[float64](4000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
 
   # {{{ buffered read (int8, big-endian)
   test "buffered read (int8, big-endian)":
@@ -986,6 +1056,78 @@ suite "BufferedReader":
 
     br = openFile(fname, endianness=bigEndian, bufSize=2000 * 8)
     buf = newSeq[uint64](4000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (float32, big-endian)
+  test "buffered read (float32, big-endian)":
+    var
+      expected = createFloat32TestData()
+      buf = newSeq[float32](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-float32-BE")
+    var br = openFile(fname, endianness=bigEndian)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=4096 * 4)
+    buf = newSeq[float32](4096)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=3000 * 4)
+    buf = newSeq[float32](1000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=1000 * 4)
+    buf = newSeq[float32](1200)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=2000 * 4)
+    buf = newSeq[float32](4000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+  # }}}
+  # {{{ buffered read (float64, little-endian)
+  test "buffered read (float64, little-endian)":
+    var
+      expected = createFloat64TestData()
+      buf = newSeq[float64](expected.len)
+
+    let fname = joinPath(TEST_DATA_DIR, "buffered-float64-BE")
+    var br = openFile(fname, endianness=bigEndian)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=4096 * 8)
+    buf = newSeq[float64](4096)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=3000 * 8)
+    buf = newSeq[float64](1000)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=1000 * 8)
+    buf = newSeq[float64](1200)
+    br.readData(buf)
+    br.close()
+    check compareBuf(buf, expected)
+
+    br = openFile(fname, endianness=bigEndian, bufSize=2000 * 8)
+    buf = newSeq[float64](4000)
     br.readData(buf)
     br.close()
     check compareBuf(buf, expected)
