@@ -29,8 +29,8 @@ proc printBytes(src: pointer, len: Natural,
     echo s
 
 
-const TEST_DATA_DIR = "testdata"
-const TEST_OUT_DIR = "test_out"
+const TEST_DATA_DIR = "tests/data"
+const TEST_OUT_DIR = "tests/out"
 
 # {{{ Test data generation
 proc createInt8TestData(): seq[int8] =
