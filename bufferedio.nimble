@@ -4,7 +4,6 @@ version       = "0.1.0"
 author        = "John Novak <john@johnnovak.net>"
 description   = "Buffered I/O with endianness conversion"
 license       = "WTFPL"
-srcDir        = "src"
 
 skipDirs = @["doc", "testdata"]
 
