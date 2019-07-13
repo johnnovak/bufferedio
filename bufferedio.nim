@@ -12,16 +12,16 @@ type
   BufferedReaderError* = object of Exception
 
 
-proc filename*(br: var BufferedReader): string {.inline.} =
+func filename*(br: var BufferedReader): string {.inline.} =
   br.filename
 
-proc file*(br: var BufferedReader): File {.inline.} =
+func file*(br: var BufferedReader): File {.inline.} =
   br.file
 
-proc endianness*(br: var BufferedReader): Endianness {.inline.} =
+func endianness*(br: var BufferedReader): Endianness {.inline.} =
   br.endianness
 
-proc swapEndian*(br: var BufferedReader): bool {.inline.} =
+func swapEndian*(br: var BufferedReader): bool {.inline.} =
   br.swapEndian
 
 
@@ -295,16 +295,16 @@ type
   BufferedWriterError* = object of Exception
 
 
-proc filename*(bw: var BufferedWriter): string {.inline.} =
+func filename*(bw: var BufferedWriter): string {.inline.} =
   bw.filename
 
-proc file*(bw: var BufferedWriter): File {.inline.} =
+func file*(bw: var BufferedWriter): File {.inline.} =
   bw.file
 
-proc endianness*(bw: var BufferedWriter): Endianness {.inline.} =
+func endianness*(bw: var BufferedWriter): Endianness {.inline.} =
   bw.endianness
 
-proc swapEndian*(bw: var BufferedWriter): bool {.inline.} =
+func swapEndian*(bw: var BufferedWriter): bool {.inline.} =
   bw.swapEndian
 
 
