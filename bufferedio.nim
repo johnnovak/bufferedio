@@ -1,5 +1,6 @@
 import endians, strformat
 
+# {{{ Reader
 
 type
   BufferedReader* = object
@@ -399,6 +400,7 @@ proc readData*(br: var BufferedReader,
   br.readData64(dest[0].addr, dest.len)
 
 # }}}
+# }}}
 
 # {{{ Writer
 
@@ -422,7 +424,7 @@ func file*(bw: BufferedWriter): File {.inline.} =
 func endianness*(bw: BufferedWriter): Endianness {.inline.} =
   bw.endianness
 
-func swapEndian*(bw: BufferedWriter): bool {.inline.} =
+func swapEndian*(bw: var BufferedWriter): bool {.inline.} =
   bw.swapEndian
 
 
