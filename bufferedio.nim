@@ -20,15 +20,15 @@ func file*(br: var BufferedReader): File {.inline.} =
 func endianness*(br: var BufferedReader): Endianness {.inline.} =
   br.endianness
 
-func swapEndian*(br: var BufferedReader): bool {.inline.} =
-  br.swapEndian
-
 proc setEndianness(br: var BufferedReader, endianness: Endianness) {.inline.} =
   br.endianness = endianness
   br.swapEndian = cpuEndian != endianness
 
 proc `endianness=`*(br: var BufferedReader, endianness: Endianness) {.inline.} =
   setEndianness(br, endianness)
+
+func swapEndian*(br: var BufferedReader): bool {.inline.} =
+  br.swapEndian
 
 proc openFile*(file: File, bufSize: Natural = 4096,
                endianness = littleEndian): BufferedReader =
@@ -423,6 +423,13 @@ func file*(bw: BufferedWriter): File {.inline.} =
 
 func endianness*(bw: BufferedWriter): Endianness {.inline.} =
   bw.endianness
+
+proc setEndianness(bw: var BufferedWriter, endianness: Endianness) {.inline.} =
+  bw.endianness = endianness
+  bw.swapEndian = cpuEndian != endianness
+
+proc `endianness=`*(br: var BufferedWriter, endianness: Endianness) {.inline.} =
+  setEndianness(br, endianness)
 
 func swapEndian*(bw: var BufferedWriter): bool {.inline.} =
   bw.swapEndian
