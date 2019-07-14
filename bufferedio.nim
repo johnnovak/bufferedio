@@ -276,7 +276,7 @@ proc readData24Unpacked*(br: var BufferedReader, dest: pointer,
 
 
 proc readData24Unpacked*(br: var BufferedReader,
-                         dest: var openArray[int32], numItems: Natural) =
+                         dest: var openArray[int32|uint32], numItems: Natural) =
   assert numItems <= dest.len
   br.readData24Unpacked(dest[0].addr, numItems)
 
@@ -314,13 +314,13 @@ proc readData24Packed*(br: var BufferedReader, dest: pointer,
     dec(bytesToRead, count)
 
 
-proc readData24Packed*(br: var BufferedReader, dest: var openArray[uint8],
+proc readData24Packed*(br: var BufferedReader, dest: var openArray[int8|uint8],
                        numItems: Natural) =
   assert numItems <= dest.len div 3
   br.readData24Packed(dest[0].addr, dest.len div 3)
 
 
-proc readData24Packed*(br: var BufferedReader, dest: var openArray[uint8]) =
+proc readData24Packed*(br: var BufferedReader, dest: var openArray[int8|uint8]) =
   br.readData24Packed(dest[0].addr, dest.len div 3)
 
 
@@ -401,7 +401,6 @@ proc readData*(br: var BufferedReader,
 
 # }}}
 # }}}
-
 # {{{ Writer
 
 type
@@ -719,14 +718,14 @@ proc writeData24Unpacked*(bw: var BufferedWriter, data: pointer,
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter,
-                          data: var openArray[int32], numItems: Natural) =
+                          data: var openArray[int32|uint32], numItems: Natural) =
   ## TODO
   assert numItems <= data.len
   bw.writeData24Unpacked(data[0].addr, numItems)
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter,
-                          data: var openArray[int32]) =
+                          data: var openArray[int32|uint32]) =
   ## TODO
   bw.writeData24Unpacked(data[0].addr, data.len)
 
