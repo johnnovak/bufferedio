@@ -182,7 +182,7 @@ proc compareBuf[T](a, b: seq[T]): bool =
 suite "BufferedReader":
 
   test "open file - file not found":
-    expect(BufferedReaderError):
+    expect(IOError):
       var br = openFile("does-not-exist")
 
 
@@ -190,7 +190,7 @@ suite "BufferedReader":
     var br = openFile(joinPath(TEST_DATA_DIR, "empty-file"))
     br.close()
 
-    expect(BufferedReaderError):
+    expect(IOError):
       br.close()
 
   # {{{ single-value reads (little-endian)
@@ -224,10 +224,10 @@ suite "BufferedReader":
 
     br.close()
 
-    expect(BufferedReaderError):
+    expect(IOError):
       br.close()
 
-    expect(BufferedReaderError):
+    expect(IOError):
       discard br.readUInt8()
 
   # }}}
@@ -260,10 +260,10 @@ suite "BufferedReader":
 
     br.close()
 
-    expect(BufferedReaderError):
+    expect(IOError):
       br.close()
 
-    expect(BufferedReaderError):
+    expect(IOError):
       discard br.readUInt8()
   # }}}
 

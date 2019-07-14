@@ -9,8 +9,6 @@ type
     endianness: Endianness
     swapEndian: bool
 
-  BufferedReaderError* = object of Exception
-
 
 func filename*(br: var BufferedReader): string {.inline.} =
   br.filename
@@ -24,14 +22,19 @@ func endianness*(br: var BufferedReader): Endianness {.inline.} =
 func swapEndian*(br: var BufferedReader): bool {.inline.} =
   br.swapEndian
 
+proc setEndianness(br: var BufferedReader, endianness: Endianness) {.inline.} =
+  br.endianness = endianness
+  br.swapEndian = cpuEndian != endianness
+
+proc `endianness=`*(br: var BufferedReader, endianness: Endianness) {.inline.} =
+  setEndianness(br, endianness)
 
 proc openFile*(file: File, bufSize: Natural = 4096,
                endianness = littleEndian): BufferedReader =
   var br: BufferedReader
   br.file = file
   br.readBuffer = newSeq[uint8](bufSize)
-  br.endianness = endianness
-  br.swapEndian = cpuEndian != endianness
+  setEndianness(br, endianness)
 
   result = br
 
@@ -43,7 +46,7 @@ proc openFile*(filename: string, bufSize: Natural = 4096,
   let mode = if writeAccess: fmReadWriteExisting else: fmRead
 
   if not open(f, filename, mode):
-    raise newException(BufferedReaderError, fmt"Error opening file")
+    raise newException(IOError, fmt"Error opening file")
 
   result = openFile(f, bufSize, endianness)
   result.filename = filename
@@ -51,7 +54,7 @@ proc openFile*(filename: string, bufSize: Natural = 4096,
 
 proc close*(br: var BufferedReader) =
   if br.file == nil:
-    raise newException(BufferedReaderError, fmt"File has already been closed")
+    raise newException(IOError, fmt"File has already been closed")
 
   br.file.close()
   br.file = nil
@@ -60,11 +63,11 @@ proc close*(br: var BufferedReader) =
 
 proc readBuf(br: var BufferedReader, dest: pointer, numBytes: Natural) =
   if br.file == nil:
-    raise newException(BufferedReaderError, fmt"File has been closed")
+    raise newException(IOError, fmt"File has been closed")
 
   let bytesRead = readBuffer(br.file, dest, numBytes)
   if  bytesRead != numBytes:
-    raise newException(BufferedReaderError,
+    raise newException(IOError,
       fmt"Error reading file, tried reading {numBytes} bytes, " &
       fmt"actually read {bytesRead}"
     )
@@ -77,14 +80,14 @@ proc readString*(br: var BufferedReader, numBytes: Natural): string =
   br.readBuf(result[0].addr, numBytes)
 
 proc readInt8*(br: var BufferedReader): int8 =
-  ## Reads a single ``int8`` value from the current file position. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## Reads a single `int8` value from the current file position. Raises
+  ## a `IOError` on read errors.
   br.readBuf(result.addr, 1)
 
 proc readInt16*(br: var BufferedReader): int16 =
-  ## Reads a single ``int16`` value from the current file position and
+  ## Reads a single `int16` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: int16
     br.readBuf(buf.addr, 2)
@@ -93,9 +96,9 @@ proc readInt16*(br: var BufferedReader): int16 =
     br.readBuf(result.addr, 2)
 
 proc readInt32*(br: var BufferedReader): int32 =
-  ## Reads a single ``int32`` value from the current file position and
+  ## Reads a single `int32` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: int32
     br.readBuf(buf.addr, 4)
@@ -104,9 +107,9 @@ proc readInt32*(br: var BufferedReader): int32 =
     br.readBuf(result.addr, 4)
 
 proc readInt64*(br: var BufferedReader): int64 =
-  ## Reads a single ``int64`` value from the current file position and
+  ## Reads a single `int64` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: int64
     br.readBuf(buf.addr, 8)
@@ -115,14 +118,14 @@ proc readInt64*(br: var BufferedReader): int64 =
     br.readBuf(result.addr, 8)
 
 proc readUInt8*(br: var BufferedReader): uint8 =
-  ## Reads a single ``uint8`` value from the current file position. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## Reads a single `uint8` value from the current file position. Raises
+  ## a `IOError` on read errors.
   br.readBuf(result.addr, 1)
 
 proc readUInt16*(br: var BufferedReader): uint16 =
-  ## Reads a single ``uint16`` value from the current file position and
+  ## Reads a single `uint16` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: uint16
     br.readBuf(buf.addr, 2)
@@ -131,9 +134,9 @@ proc readUInt16*(br: var BufferedReader): uint16 =
     br.readBuf(result.addr, 2)
 
 proc readUInt32*(br: var BufferedReader): uint32 =
-  ## Reads a single ``uint32`` value from the current file position and
+  ## Reads a single `uint32` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: uint32
     br.readBuf(buf.addr, 4)
@@ -142,9 +145,9 @@ proc readUInt32*(br: var BufferedReader): uint32 =
     br.readBuf(result.addr, 4)
 
 proc readUInt64*(br: var BufferedReader): uint64 =
-  ## Reads a single ``uint64`` value from the current file position and
+  ## Reads a single `uint64` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: uint64
     br.readBuf(buf.addr, 8)
@@ -153,9 +156,9 @@ proc readUInt64*(br: var BufferedReader): uint64 =
     br.readBuf(result.addr, 8)
 
 proc readFloat32*(br: var BufferedReader): float32 =
-  ## Reads a single ``float32`` value from the current file position and
+  ## Reads a single `float32` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: float32
     br.readBuf(buf.addr, 4)
@@ -164,9 +167,9 @@ proc readFloat32*(br: var BufferedReader): float32 =
     br.readBuf(result.addr, 4)
 
 proc readFloat64*(br: var BufferedReader): float64 =
-  ## Reads a single ``float64`` value from the current file position and
+  ## Reads a single `float64` value from the current file position and
   ## performs endianness conversion if necessary. Raises
-  ## a ``BufferedReaderError`` on read errors.
+  ## a `IOError` on read errors.
   if br.swapEndian:
     var buf: float64
     br.readBuf(buf.addr, 8)
@@ -180,16 +183,16 @@ proc readFloat64*(br: var BufferedReader): float64 =
 # 8-bit
 
 proc readData8*(br: var BufferedReader, dest: pointer, numItems: Natural) =
-  ## Reads `numItems` number of ``int8|uint8`` values into `dest` from the
+  ## Reads `numItems` number of `int8|uint8` values into `dest` from the
   ## current file position and performs endianness conversion if necessary.
-  ## Raises a ``BufferedReaderError`` on read errors.
+  ## Raises a `IOError` on read errors.
   br.readBuf(dest, numItems)
 
 proc readData*(br: var BufferedReader,
                dest: var openArray[int8|uint8], numItems: Natural) =
-  ## Reads `numItems` number of ``int8|uint8`` values into `dest` from the
+  ## Reads `numItems` number of `int8|uint8` values into `dest` from the
   ## current file position and performs endianness conversion if necessary.
-  ## Raises a ``BufferedReaderError`` on read errors.
+  ## Raises a `IOError` on read errors.
   assert numItems <= dest.len
   br.readBuf(dest[0].addr, numItems)
 
@@ -201,9 +204,9 @@ proc readData*(br: var BufferedReader, dest: var openArray[int8|uint8]) =
 # 16-bit
 
 proc readData16*(br: var BufferedReader, dest: pointer, numItems: Natural) =
-  ## Reads `numItems` number of ``int16|uint16`` values into `dest` from the
+  ## Reads `numItems` number of `int16|uint16` values into `dest` from the
   ## current file position and performs endianness conversion if necessary.
-  ## Raises a ``BufferedReaderError`` on read errors.
+  ## Raises a `IOError` on read errors.
   const WIDTH = 2
   if br.swapEndian:
     var
@@ -227,9 +230,9 @@ proc readData16*(br: var BufferedReader, dest: pointer, numItems: Natural) =
 
 proc readData*(br: var BufferedReader,
                dest: var openArray[int16|uint16], numItems: Natural) =
-  ## Reads `numItems` number of ``int16|uint16`` values into `dest` from the
+  ## Reads `numItems` number of `int16|uint16` values into `dest` from the
   ## current file position and performs endianness conversion if necessary.
-  ## Raises a ``BufferedReaderError`` on read errors.
+  ## Raises a `IOError` on read errors.
   assert numItems <= dest.len
   br.readData16(dest[0].addr, numItems)
 
@@ -346,9 +349,9 @@ proc readData32*(br: var BufferedReader, dest: pointer, numItems: Natural) =
 
 proc readData*(br: var BufferedReader,
                dest: var openArray[int32|uint32|float32], numItems: Natural) =
-  ## Reads `numItems` number of ``int32|uint32|float32`` values into `dest`
+  ## Reads `numItems` number of `int32|uint32|float32` values into `dest`
   ## from the current file position and performs endianness conversion if
-  ## necessary. Raises a ``BufferedReaderError`` on read errors.
+  ## necessary. Raises a `IOError` on read errors.
   assert numItems <= dest.len
   br.readData32(dest[0].addr, numItems)
 
@@ -384,9 +387,9 @@ proc readData64*(br: var BufferedReader, dest: pointer, numItems: Natural) =
 
 proc readData*(br: var BufferedReader,
                dest: var openArray[int64|uint64|float64], numItems: Natural) =
-  ## Reads `len` number of ``int64|uint64|float64`` values into `dest` from
+  ## Reads `len` number of `int64|uint64|float64` values into `dest` from
   ## the current file position and performs endianness conversion if
-  ## necessary.  Raises a ``BufferedReaderError`` on read errors.
+  ## necessary.  Raises a `IOError` on read errors.
   assert numItems <= dest.len
   br.readData64(dest[0].addr, numItems)
 
@@ -410,16 +413,16 @@ type
   BufferedWriterError* = object of Exception
 
 
-func filename*(bw: var BufferedWriter): string {.inline.} =
+func filename*(bw: BufferedWriter): string {.inline.} =
   bw.filename
 
-func file*(bw: var BufferedWriter): File {.inline.} =
+func file*(bw: BufferedWriter): File {.inline.} =
   bw.file
 
-func endianness*(bw: var BufferedWriter): Endianness {.inline.} =
+func endianness*(bw: BufferedWriter): Endianness {.inline.} =
   bw.endianness
 
-func swapEndian*(bw: var BufferedWriter): bool {.inline.} =
+func swapEndian*(bw: BufferedWriter): bool {.inline.} =
   bw.swapEndian
 
 
