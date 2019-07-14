@@ -11,13 +11,13 @@ type
     swapEndian: bool
 
 
-func filename*(br: var BufferedReader): string {.inline.} =
+func filename*(br: BufferedReader): string {.inline.} =
   br.filename
 
-func file*(br: var BufferedReader): File {.inline.} =
+func file*(br: BufferedReader): File {.inline.} =
   br.file
 
-func endianness*(br: var BufferedReader): Endianness {.inline.} =
+func endianness*(br: BufferedReader): Endianness {.inline.} =
   br.endianness
 
 proc setEndianness(br: var BufferedReader, endianness: Endianness) {.inline.} =
@@ -27,7 +27,7 @@ proc setEndianness(br: var BufferedReader, endianness: Endianness) {.inline.} =
 proc `endianness=`*(br: var BufferedReader, endianness: Endianness) {.inline.} =
   setEndianness(br, endianness)
 
-func swapEndian*(br: var BufferedReader): bool {.inline.} =
+func swapEndian*(br: BufferedReader): bool {.inline.} =
   br.swapEndian
 
 proc openFile*(file: File, bufSize: Natural = 4096,
@@ -431,7 +431,7 @@ proc setEndianness(bw: var BufferedWriter, endianness: Endianness) {.inline.} =
 proc `endianness=`*(br: var BufferedWriter, endianness: Endianness) {.inline.} =
   setEndianness(br, endianness)
 
-func swapEndian*(bw: var BufferedWriter): bool {.inline.} =
+func swapEndian*(bw: BufferedWriter): bool {.inline.} =
   bw.swapEndian
 
 
