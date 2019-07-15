@@ -76,7 +76,6 @@ proc readBuf(br: var BufferedReader, dest: pointer, numBytes: Natural) =
 # {{{ Single-value read
 
 proc readString*(br: var BufferedReader, numBytes: Natural): string =
-  ## TODO
   result = newString(numBytes)
   br.readBuf(result[0].addr, numBytes)
 
@@ -197,10 +196,6 @@ proc readData*(br: var BufferedReader,
   assert numItems <= dest.len
   br.readBuf(dest[0].addr, numItems)
 
-proc readData*(br: var BufferedReader, dest: var openArray[int8|uint8]) =
-  ## Shortcut to fill the whole `dest` buffer with data.
-  br.readBuf(dest[0].addr, dest.len)
-
 
 # 16-bit
 
@@ -236,10 +231,6 @@ proc readData*(br: var BufferedReader,
   ## Raises a `IOError` on read errors.
   assert numItems <= dest.len
   br.readData16(dest[0].addr, numItems)
-
-proc readData*(br: var BufferedReader, dest: var openArray[int16|uint16]) =
-  ## Shortcut to fill the whole `dest` buffer with data.
-  br.readData16(dest[0].addr, dest.len)
 
 
 # 24-bit
@@ -283,7 +274,7 @@ proc readData24Unpacked*(br: var BufferedReader,
 
 proc readData24Unpacked*(br: var BufferedReader,
                          dest: var openArray[int32|uint32]) =
-  br.readData24Unpacked(dest[0].addr, dest.len)
+  br.readData24Unpacked(dest, dest.len)
 
 
 proc readData24Packed*(br: var BufferedReader, dest: pointer,
@@ -321,7 +312,7 @@ proc readData24Packed*(br: var BufferedReader, dest: var openArray[int8|uint8],
 
 
 proc readData24Packed*(br: var BufferedReader, dest: var openArray[int8|uint8]) =
-  br.readData24Packed(dest[0].addr, dest.len div 3)
+  br.readData24Packed(dest, dest.len div 3)
 
 
 # 32-bit
@@ -356,11 +347,6 @@ proc readData*(br: var BufferedReader,
   assert numItems <= dest.len
   br.readData32(dest[0].addr, numItems)
 
-proc readData*(br: var BufferedReader,
-               dest: var openArray[int32|uint32|float32]) =
-  ## Shortcut to fill the whole `dest` buffer with data.
-  br.readData32(dest[0].addr, dest.len)
-
 
 # 64-bit
 
@@ -394,10 +380,16 @@ proc readData*(br: var BufferedReader,
   assert numItems <= dest.len
   br.readData64(dest[0].addr, numItems)
 
+
+# Extra
+
+type AllBufferedTypes = int8|uint8|int16|uint16|int32|uint32|float32|int64|uint64|float64
+
 proc readData*(br: var BufferedReader,
-               dest: var openArray[int64|uint64|float64]) =
+               dest: var openArray[AllBufferedTypes]) =
   ## Shortcut to fill the whole `dest` buffer with data.
-  br.readData64(dest[0].addr, dest.len)
+  br.readData(dest, dest.len)
+
 
 # }}}
 # }}}
@@ -468,7 +460,7 @@ proc close*(bw: var BufferedWriter) =
   bw.filename = ""
 
 
-proc writeBuf(bw: var BufferedWriter, data: pointer, numBytes: Natural) =
+proc writeBuf(bw: var BufferedWriter, src: pointer, numBytes: Natural) =
   if bw.file == nil:
     raise newException(BufferedWriterError, fmt"File has been closed")
 
@@ -481,17 +473,6 @@ proc writeBuf(bw: var BufferedWriter, data: pointer, numBytes: Natural) =
 
 
 # {{{ Single-value write
-
-proc writeString*(bw: var BufferedWriter, s: string) =
-  ## TODO
-  var buf = s
-  bw.writeBuf(buf[0].addr, s.len)
-
-proc writeString*(bw: var BufferedWriter, s: string, numBytes: Natural) =
-  ## TODO
-  assert numBytes <= s.len
-  var buf = s
-  bw.writeBuf(buf[0].addr, numBytes)
 
 proc writeInt8*(bw: var BufferedWriter, d: int8) =
   ## TODO
@@ -583,20 +564,30 @@ proc writeFloat64*(bw: var BufferedWriter, d: float64) =
   else:
     bw.writeBuf(src.addr, 8)
 
+proc writeString*(bw: var BufferedWriter, s: string, numBytes: Natural) =
+  ## TODO
+  assert numBytes <= s.len
+  var buf = s
+  bw.writeBuf(buf[0].addr, numBytes)
+
+proc writeString*(bw: var BufferedWriter, s: string) =
+  ## TODO
+  bw.writeString(s, s.len)
+
 # }}}
 # {{{ Buffered write
 
 # 8-bit
 #
-proc writeData8*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
+proc writeData8*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   ## TODO
   bw.writeBuf(data, numItems)
 
-proc writeData*(bw: var BufferedWriter, data: var openArray[int8|uint8]) =
+proc writeData*(bw: var BufferedWriter, src: var openArray[int8|uint8]) =
   ## TODO
   bw.writeBuf(data[0].addr, data.len)
 
-proc writeData*(bw: var BufferedWriter, data: var openArray[int8|uint8],
+proc writeData*(bw: var BufferedWriter, src: var openArray[int8|uint8],
                 numItems: Natural) =
   ## TODO
   assert numItems <= data.len
@@ -605,7 +596,7 @@ proc writeData*(bw: var BufferedWriter, data: var openArray[int8|uint8],
 
 # 16-bit
 
-proc writeData16*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
+proc writeData16*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   ## TODO
   const WIDTH = 2
   let numBytes = numItems * WIDTH
@@ -630,11 +621,11 @@ proc writeData16*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
   else:
     bw.writeBuf(data, numBytes)
 
-proc writeData*(bw: var BufferedWriter, data: var openArray[int16|uint16]) =
+proc writeData*(bw: var BufferedWriter, src: var openArray[int16|uint16]) =
   ## TODO
   bw.writeData16(data[0].addr, data.len)
 
-proc writeData*(bw: var BufferedWriter, data: var openArray[int16|uint16],
+proc writeData*(bw: var BufferedWriter, src: var openArray[int16|uint16],
                 numItems: Natural) =
   ## TODO
   assert numItems <= data.len
@@ -643,7 +634,7 @@ proc writeData*(bw: var BufferedWriter, data: var openArray[int16|uint16],
 
 # 24-bit
 
-proc writeData24Packed*(bw: var BufferedWriter, data: pointer,
+proc writeData24Packed*(bw: var BufferedWriter, src: pointer,
                         numItems: Natural) =
   ## TODO
   const WIDTH = 3
@@ -674,19 +665,19 @@ proc writeData24Packed*(bw: var BufferedWriter, data: pointer,
 
 
 proc writeData24Packed*(bw: var BufferedWriter,
-                        data: var openArray[int8|uint8], numItems: Natural) =
+                        src: var openArray[int8|uint8], numItems: Natural) =
   ## TODO
   assert numItems * 3 <= data.len
   bw.writeData24Packed(data[0].addr, numItems)
 
 
 proc writeData24Packed*(bw: var BufferedWriter,
-                        data: var openArray[int8|uint8]) =
+                        src: var openArray[int8|uint8]) =
   ## TODO
   bw.writeData24Packed(data[0].addr, data.len div 3)
 
 
-proc writeData24Unpacked*(bw: var BufferedWriter, data: pointer,
+proc writeData24Unpacked*(bw: var BufferedWriter, src: pointer,
                           numItems: Natural) =
   ## TODO
   let numBytes = numItems * 4
@@ -718,21 +709,21 @@ proc writeData24Unpacked*(bw: var BufferedWriter, data: pointer,
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter,
-                          data: var openArray[int32|uint32], numItems: Natural) =
+                          src: var openArray[int32|uint32], numItems: Natural) =
   ## TODO
   assert numItems <= data.len
   bw.writeData24Unpacked(data[0].addr, numItems)
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter,
-                          data: var openArray[int32|uint32]) =
+                          src: var openArray[int32|uint32]) =
   ## TODO
   bw.writeData24Unpacked(data[0].addr, data.len)
 
 
 # 32-bit
 
-proc writeData32*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
+proc writeData32*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   ## TODO
   const WIDTH = 4
   let numBytes = numItems * 4
@@ -759,21 +750,21 @@ proc writeData32*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
 
 
 proc writeData*(bw: var BufferedWriter,
-                data: var openArray[int32|uint32|float32], numItems: Natural) =
+                src: var openArray[int32|uint32|float32], numItems: Natural) =
   ## TODO
   assert numItems <= data.len
   bw.writeData32(data[0].addr, numItems)
 
 
 proc writeData*(bw: var BufferedWriter,
-                data: var openArray[int32|uint32|float32]) =
+                src: var openArray[int32|uint32|float32]) =
   ## TODO
   bw.writeData32(data[0].addr, data.len)
 
 
 # 64-bit
 
-proc writeData64*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
+proc writeData64*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   ## TODO
   const WIDTH = 8
   let numBytes = numItems * WIDTH
@@ -800,14 +791,14 @@ proc writeData64*(bw: var BufferedWriter, data: pointer, numItems: Natural) =
 
 
 proc writeData*(bw: var BufferedWriter,
-                data: var openArray[int64|uint64|float64], numItems: Natural) =
+                src: var openArray[int64|uint64|float64], numItems: Natural) =
   ## TODO
   assert numItems <= data.len
   bw.writeData64(data[0].addr, numItems)
 
 
 proc writeData*(bw: var BufferedWriter,
-                data: var openArray[int64|uint64|float64]) =
+                src: var openArray[int64|uint64|float64]) =
   ## TODO
   bw.writeData64(data[0].addr, data.len)
 
