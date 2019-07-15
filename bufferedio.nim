@@ -464,7 +464,7 @@ proc writeBuf(bw: var BufferedWriter, src: pointer, numBytes: Natural) =
   if bw.file == nil:
     raise newException(BufferedWriterError, fmt"File has been closed")
 
-  let bytesWritten = writeBuffer(bw.file, data, numBytes)
+  let bytesWritten = writeBuffer(bw.file, src, numBytes)
   if bytesWritten != numBytes:
     raise newException(BufferedWriterError,
       fmt"Error writing file, tried writing {numBytes} bytes, " &
@@ -477,7 +477,7 @@ proc writeBuf(bw: var BufferedWriter, src: pointer, numBytes: Natural) =
 proc writeInt8*(bw: var BufferedWriter, d: int8) =
   ## TODO
   var dest = d
-  bw.writeBuf(dest.addr, 1)
+  bw.writeBuf(dest.addr, sizeof(d))
 
 proc writeInt16*(bw: var BufferedWriter, d: int16) =
   ## TODO
@@ -485,9 +485,9 @@ proc writeInt16*(bw: var BufferedWriter, d: int16) =
   if bw.swapEndian:
     var dest: int16
     swapEndian16(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 2)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 2)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeInt32*(bw: var BufferedWriter, d: int32) =
   ## TODO
@@ -495,9 +495,9 @@ proc writeInt32*(bw: var BufferedWriter, d: int32) =
   if bw.swapEndian:
     var dest: int32
     swapEndian32(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 4)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 4)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeInt64*(bw: var BufferedWriter, d: int64) =
   ## TODO
@@ -505,14 +505,14 @@ proc writeInt64*(bw: var BufferedWriter, d: int64) =
   if bw.swapEndian:
     var dest: int64
     swapEndian64(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 8)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 8)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeUInt8*(bw: var BufferedWriter, d: uint8) =
   ## TODO
   var dest = d
-  bw.writeBuf(dest.addr, 1)
+  bw.writeBuf(dest.addr, sizeof(d))
 
 proc writeUInt16*(bw: var BufferedWriter, d: uint16) =
   ## TODO
@@ -520,9 +520,9 @@ proc writeUInt16*(bw: var BufferedWriter, d: uint16) =
   if bw.swapEndian:
     var dest: int16
     swapEndian16(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 2)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 2)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeUInt32*(bw: var BufferedWriter, d: uint32) =
   ## TODO
@@ -530,9 +530,9 @@ proc writeUInt32*(bw: var BufferedWriter, d: uint32) =
   if bw.swapEndian:
     var dest: int32
     swapEndian32(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 4)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 4)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeUInt64*(bw: var BufferedWriter, d: uint64) =
   ## TODO
@@ -540,9 +540,9 @@ proc writeUInt64*(bw: var BufferedWriter, d: uint64) =
   if bw.swapEndian:
     var dest: int64
     swapEndian64(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 8)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 8)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeFloat32*(bw: var BufferedWriter, d: float32) =
   ## TODO
@@ -550,9 +550,9 @@ proc writeFloat32*(bw: var BufferedWriter, d: float32) =
   if bw.swapEndian:
     var dest: float32
     swapEndian32(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 4)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 4)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeFloat64*(bw: var BufferedWriter, d: float64) =
   ## TODO
@@ -560,9 +560,9 @@ proc writeFloat64*(bw: var BufferedWriter, d: float64) =
   if bw.swapEndian:
     var dest: float64
     swapEndian64(dest.addr, src.addr)
-    bw.writeBuf(dest.addr, 8)
+    bw.writeBuf(dest.addr, sizeof(d))
   else:
-    bw.writeBuf(src.addr, 8)
+    bw.writeBuf(src.addr, sizeof(d))
 
 proc writeString*(bw: var BufferedWriter, s: string, numBytes: Natural) =
   ## TODO
@@ -581,17 +581,12 @@ proc writeString*(bw: var BufferedWriter, s: string) =
 #
 proc writeData8*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   ## TODO
-  bw.writeBuf(data, numItems)
-
-proc writeData*(bw: var BufferedWriter, src: var openArray[int8|uint8]) =
-  ## TODO
-  bw.writeBuf(data[0].addr, data.len)
+  bw.writeBuf(src, numItems)
 
 proc writeData*(bw: var BufferedWriter, src: var openArray[int8|uint8],
                 numItems: Natural) =
   ## TODO
-  assert numItems <= data.len
-  bw.writeBuf(data[0].addr, numItems)
+  bw.writeData8(src[0].addr, numItems)
 
 
 # 16-bit
@@ -604,7 +599,7 @@ proc writeData16*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   if bw.swapEndian:
     let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
-      src = cast[ptr UncheckedArray[uint8]](data)
+      src = cast[ptr UncheckedArray[uint8]](src)
       pos = 0
       destPos = 0
 
@@ -619,17 +614,12 @@ proc writeData16*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
     if destPos > 0:
       bw.writeBuf(bw.writeBuffer[0].addr, destPos)
   else:
-    bw.writeBuf(data, numBytes)
-
-proc writeData*(bw: var BufferedWriter, src: var openArray[int16|uint16]) =
-  ## TODO
-  bw.writeData16(data[0].addr, data.len)
+    bw.writeBuf(src, numBytes)
 
 proc writeData*(bw: var BufferedWriter, src: var openArray[int16|uint16],
                 numItems: Natural) =
   ## TODO
-  assert numItems <= data.len
-  bw.writeData16(data[0].addr, numItems)
+  bw.writeData16(src[0].addr, numItems)
 
 
 # 24-bit
@@ -643,7 +633,7 @@ proc writeData24Packed*(bw: var BufferedWriter, src: pointer,
   if bw.swapEndian:
     let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
-      src = cast[ptr UncheckedArray[uint8]](data)
+      src = cast[ptr UncheckedArray[uint8]](src)
       pos = 0
       destPos = 0
 
@@ -661,20 +651,20 @@ proc writeData24Packed*(bw: var BufferedWriter, src: pointer,
     if destPos > 0:
       bw.writeBuf(bw.writeBuffer[0].addr, destPos)
   else:
-    bw.writeBuf(data, numBytes)
+    bw.writeBuf(src, numBytes)
 
 
 proc writeData24Packed*(bw: var BufferedWriter,
                         src: var openArray[int8|uint8], numItems: Natural) =
   ## TODO
-  assert numItems * 3 <= data.len
-  bw.writeData24Packed(data[0].addr, numItems)
+  assert numItems * 3 <= src.len
+  bw.writeData24Packed(src[0].addr, numItems)
 
 
 proc writeData24Packed*(bw: var BufferedWriter,
                         src: var openArray[int8|uint8]) =
   ## TODO
-  bw.writeData24Packed(data[0].addr, data.len div 3)
+  bw.writeData24Packed(src, src.len div 3)
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter, src: pointer,
@@ -684,7 +674,7 @@ proc writeData24Unpacked*(bw: var BufferedWriter, src: pointer,
 
   let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod 3
   var
-    src = cast[ptr UncheckedArray[uint8]](data)
+    src = cast[ptr UncheckedArray[uint8]](src)
     pos = 0
     destPos = 0
 
@@ -711,14 +701,14 @@ proc writeData24Unpacked*(bw: var BufferedWriter, src: pointer,
 proc writeData24Unpacked*(bw: var BufferedWriter,
                           src: var openArray[int32|uint32], numItems: Natural) =
   ## TODO
-  assert numItems <= data.len
-  bw.writeData24Unpacked(data[0].addr, numItems)
+  assert numItems <= src.len
+  bw.writeData24Unpacked(src[0].addr, numItems)
 
 
 proc writeData24Unpacked*(bw: var BufferedWriter,
                           src: var openArray[int32|uint32]) =
   ## TODO
-  bw.writeData24Unpacked(data[0].addr, data.len)
+  bw.writeData24Unpacked(src, src.len)
 
 
 # 32-bit
@@ -731,7 +721,7 @@ proc writeData32*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   if bw.swapEndian:
     let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
-      src = cast[ptr UncheckedArray[uint8]](data)
+      src = cast[ptr UncheckedArray[uint8]](src)
       pos = 0
       destPos = 0
 
@@ -746,20 +736,14 @@ proc writeData32*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
     if destPos > 0:
       bw.writeBuf(bw.writeBuffer[0].addr, destPos)
   else:
-    bw.writeBuf(data, numBytes)
+    bw.writeBuf(src, numBytes)
 
 
 proc writeData*(bw: var BufferedWriter,
                 src: var openArray[int32|uint32|float32], numItems: Natural) =
   ## TODO
-  assert numItems <= data.len
-  bw.writeData32(data[0].addr, numItems)
-
-
-proc writeData*(bw: var BufferedWriter,
-                src: var openArray[int32|uint32|float32]) =
-  ## TODO
-  bw.writeData32(data[0].addr, data.len)
+  assert numItems <= src.len
+  bw.writeData32(src[0].addr, numItems)
 
 
 # 64-bit
@@ -772,7 +756,7 @@ proc writeData64*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
   if bw.swapEndian:
     let writeBufferSize = bw.writeBuffer.len - bw.writeBuffer.len mod WIDTH
     var
-      src = cast[ptr UncheckedArray[uint8]](data)
+      src = cast[ptr UncheckedArray[uint8]](src)
       pos = 0
       destPos = 0
 
@@ -787,21 +771,19 @@ proc writeData64*(bw: var BufferedWriter, src: pointer, numItems: Natural) =
     if destPos > 0:
       bw.writeBuf(bw.writeBuffer[0].addr, destPos)
   else:
-    bw.writeBuf(data, numBytes)
+    bw.writeBuf(src, numBytes)
 
 
 proc writeData*(bw: var BufferedWriter,
                 src: var openArray[int64|uint64|float64], numItems: Natural) =
   ## TODO
-  assert numItems <= data.len
-  bw.writeData64(data[0].addr, numItems)
+  assert numItems <= src.len
+  bw.writeData64(src[0].addr, numItems)
 
 
-proc writeData*(bw: var BufferedWriter,
-                src: var openArray[int64|uint64|float64]) =
+proc writeData*(bw: var BufferedWriter, src: var openArray[AllBufferedTypes]) =
   ## TODO
-  bw.writeData64(data[0].addr, data.len)
-
+  bw.writeData(src, src.len)
 
 # }}}
 
